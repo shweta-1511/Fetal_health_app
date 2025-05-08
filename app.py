@@ -21,24 +21,11 @@ st.sidebar.expander("Debug Info").write({
     "Data directory contents": os.listdir("data") if os.path.exists("data") else "Not found"
 })
 
-# Define relative model paths dictionary
-MODEL_PATHS = {
-    "AdaBoost": "models/adaboost_model.pkl",
-    "Decision Tree": "models/decision_tree_model.pkl",
-    "Gaussian NB": "models/gaussian_nb_model.pkl",
-    "K-Nearest Neighbors": "models/kneighbors_model.pkl",
-    "Logistic Regression": "models/logistic_regression_model.pkl",
-    "PSO Weighted Voting": "models/pso_weighted_voting_model.pkl",
-    "Soft Voting": "models/soft_voting_model.pkl",
-    "Stacking": "models/stacking_model.pkl"
-}
+# Path to the stacking model
+MODEL_PATH = "models/stacking_model.pkl"
 
 # Path to dataset
 DATA_PATH = "data/balanced_ga_dataset_normalized.csv"
-
-# Sidebar model selector
-st.sidebar.title("Model Selection")
-selected_model_name = st.sidebar.selectbox("Choose a model", list(MODEL_PATHS.keys()))
 
 # Load model
 @st.cache_resource
@@ -50,7 +37,7 @@ def load_model(model_path):
         st.error(f"Error loading model: {e}")
         return None
 
-model = load_model(MODEL_PATHS[selected_model_name])
+model = load_model(MODEL_PATH)
 
 # Load dataset
 @st.cache_data
@@ -67,7 +54,7 @@ data = load_dataset(DATA_PATH)
 # Title
 st.title('Fetal Health Classification')
 st.markdown("""
-    This app predicts fetal health using Cardiotocogram (CTG) features. 
+    This app predicts fetal health using Cardiotocogram (CTG) features using a Stacking model.
     Adjust the sliders below to simulate input values.
 """)
 
@@ -99,11 +86,16 @@ def get_model_features(model):
 if model is not None:
     try:
         model_features = get_model_features(model)
-        st.info(f"Model expects {len(model_features)} features")
+        st.info(f"Stacking model expects {len(model_features)} features")
+        
+        # Show model features in an expander
+        with st.expander("Model Feature Information"):
+            st.write("Model features:", model_features)
     except Exception as e:
         st.error(f"Error determining model features: {e}")
         model_features = data.drop('fetal_health', axis=1).columns.tolist() if 'fetal_health' in data.columns else data.columns.tolist()
 else:
+    st.error("Failed to load the Stacking model. Please check the model file path.")
     model_features = data.drop('fetal_health', axis=1).columns.tolist() if 'fetal_health' in data.columns else data.columns.tolist()
 
 # Layout input columns
@@ -161,7 +153,7 @@ if st.button("Predict Fetal Health"):
                 3: 'Pathological'
             }
 
-            st.success(f"Predicted Fetal Health: **{health_status[prediction]}** using **{selected_model_name}**")
+            st.success(f"Predicted Fetal Health: **{health_status[prediction]}** using Stacking model")
 
             if hasattr(model, 'predict_proba'):
                 probs = model.predict_proba(input_df)[0]
@@ -177,21 +169,23 @@ if st.button("Predict Fetal Health"):
                 
         except Exception as e:
             st.error(f"Prediction error: {str(e)}")
-            st.error("Detailed traceback:", exception=e)
+            import traceback
+            st.error(f"Detailed error: {traceback.format_exc()}")
     else:
-        st.error("Model could not be loaded. Please select a different model.")
+        st.error("Stacking model could not be loaded. Please check the model file.")
 
 # Sidebar info
 st.sidebar.title("Instructions")
 st.sidebar.info("""
-1. Select a model from the dropdown
-2. Adjust input values using sliders
-3. Click 'Predict Fetal Health' to get results
+1. Adjust input values using sliders
+2. Click 'Predict Fetal Health' to get results
 """)
 
 st.sidebar.title("About")
 st.sidebar.info("""
-This app uses ML models to predict fetal health based on CTG data from the normalized dataset.
+This app uses a Stacking ensemble model to predict fetal health based on Cardiotocogram (CTG) data.
+
+Stacking combines multiple base models through a meta-learner, potentially providing better predictive performance than any single model.
 """)
 
 # Add author information
